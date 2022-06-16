@@ -36,6 +36,12 @@ const (
 	RefreshTokenTTL = time.Hour * 24 * 30 // 30 days
 )
 
+var (
+	errTokenNotValid     = errors.New("token not valid")
+	errTokensNotFormPair = errors.New("tokens not form a pair")
+	errTokensExpired     = errors.New("tokens expired")
+)
+
 func (a *AuthService) generateTokenPair(ctx context.Context, userID string) (mapper.TokenPair, error) {
 	refreshSession := model.RefreshSession{
 		ID:        uuid.NewString(),
@@ -129,9 +135,3 @@ func (a *AuthService) RefreshToken(ctx context.Context, req mapper.TokenPair) (m
 	}
 	return res, err
 }
-
-var (
-	errTokenNotValid     = errors.New("token not valid")
-	errTokensNotFormPair = errors.New("tokens not form a pair")
-	errTokensExpired     = errors.New("tokens expired")
-)
