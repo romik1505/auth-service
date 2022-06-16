@@ -1,0 +1,11 @@
+envs:
+  - name: PORT
+    value: ":8080"
+
+secrets:
+  - name: mongodb
+    value: mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000
+  - name: access-private-key
+    value: ACCESSKEY
+  - name: refresh-private-key
+    value: REFRESHKEY
