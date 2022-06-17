@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -62,8 +63,14 @@ func (h Handler) refreshToken(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.authService.RefreshToken(ctx, req)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
 		log.Println(err.Error())
+		if errors.Is(err, service.ErrTokensNotFormPair) ||
+			errors.Is(err, service.ErrTokensExpired) ||
+			errors.Is(err, service.ErrInvalidToken) {
+			w.WriteHeader(http.StatusForbidden)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 	}
 
 	respData, err := json.Marshal(resp)

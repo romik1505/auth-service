@@ -37,9 +37,9 @@ const (
 )
 
 var (
-	errTokenNotValid     = errors.New("token not valid")
-	errTokensNotFormPair = errors.New("tokens not form a pair")
-	errTokensExpired     = errors.New("tokens expired")
+	ErrInvalidToken      = errors.New("invalid token")
+	ErrTokensNotFormPair = errors.New("tokens not form a pair")
+	ErrTokensExpired     = errors.New("tokens expired")
 )
 
 func (a *AuthService) generateTokenPair(ctx context.Context, userID string) (mapper.TokenPair, error) {
@@ -80,10 +80,12 @@ func (a *AuthService) Login(ctx context.Context, req mapper.LoginRequest) (mappe
 	if err := req.Bind(); err != nil {
 		return mapper.TokenPair{}, err
 	}
+
 	pair, err := a.generateTokenPair(ctx, req.UserID)
 	if err != nil {
 		return mapper.TokenPair{}, err
 	}
+
 	return pair, err
 }
 
@@ -94,12 +96,12 @@ func (a *AuthService) RefreshToken(ctx context.Context, req mapper.TokenPair) (m
 
 	token, err := jwt.ParseWithClaims(req.AccessToken, &model.JwtClaims{}, model.JWTKeyFunc)
 	if err != nil {
-		return mapper.TokenPair{}, err
+		return mapper.TokenPair{}, ErrInvalidToken
 	}
 
 	claims, ok := token.Claims.(*model.JwtClaims)
-	if !ok || !token.Valid {
-		return mapper.TokenPair{}, errTokenNotValid
+	if !ok {
+		return mapper.TokenPair{}, ErrInvalidToken
 	}
 
 	refresh, err := base64.StdEncoding.DecodeString(req.RefreshToken)
@@ -110,17 +112,17 @@ func (a *AuthService) RefreshToken(ctx context.Context, req mapper.TokenPair) (m
 	oldSession, err := a.SessionRepository.GetSession(ctx, claims.UserID, claims.RefreshTokenID)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return mapper.TokenPair{}, errTokensNotFormPair
+			return mapper.TokenPair{}, ErrTokensNotFormPair
 		}
 		return mapper.TokenPair{}, err
 	}
 
 	if oldSession.ExpiresIn < time.Now().Unix() {
-		return mapper.TokenPair{}, errTokensExpired
+		return mapper.TokenPair{}, ErrTokensExpired
 	}
 
 	if err := bcrypt.CompareHashAndPassword(oldSession.RefreshToken, []byte(refresh)); err != nil {
-		return mapper.TokenPair{}, errTokensNotFormPair
+		return mapper.TokenPair{}, ErrTokensNotFormPair
 	}
 
 	_, err = a.SessionRepository.DeleteSession(ctx, claims.UserID, claims.RefreshTokenID)
@@ -129,7 +131,6 @@ func (a *AuthService) RefreshToken(ctx context.Context, req mapper.TokenPair) (m
 	}
 
 	res, err := a.generateTokenPair(ctx, claims.UserID)
-
 	if err != nil {
 		return mapper.TokenPair{}, err
 	}
