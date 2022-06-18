@@ -94,7 +94,7 @@ func (a *AuthService) RefreshToken(ctx context.Context, req mapper.TokenPair) (m
 		return mapper.TokenPair{}, err
 	}
 
-	token, err := jwt.ParseWithClaims(req.AccessToken, &model.JwtClaims{}, model.JWTKeyFunc)
+	token, err := parseWithSkipClaimsValidation(req.AccessToken, &model.JwtClaims{}, model.JWTKeyFunc)
 	if err != nil {
 		return mapper.TokenPair{}, ErrInvalidToken
 	}
@@ -135,4 +135,11 @@ func (a *AuthService) RefreshToken(ctx context.Context, req mapper.TokenPair) (m
 		return mapper.TokenPair{}, err
 	}
 	return res, err
+}
+
+func parseWithSkipClaimsValidation(tokenString string, claims jwt.Claims, keyFunc jwt.Keyfunc) (*jwt.Token, error) {
+	p := &jwt.Parser{
+		SkipClaimsValidation: true,
+	}
+	return p.ParseWithClaims(tokenString, claims, keyFunc)
 }

@@ -1,0 +1,88 @@
+basePath: /
+definitions:
+  mapper.LoginRequest:
+    properties:
+      user_id:
+        type: string
+    type: object
+  mapper.TokenPair:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: This is authenticate service.
+  title: Auth service
+  version: "0.1"
+paths:
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: login to service
+      operationId: login
+      parameters:
+      - description: account info
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/mapper.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: token pairs
+          schema:
+            $ref: '#/definitions/mapper.TokenPair'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Login
+      tags:
+      - auth
+  /refresh-token:
+    post:
+      consumes:
+      - application/json
+      description: refresh token pair
+      operationId: refresh
+      parameters:
+      - description: previous token pair
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/mapper.TokenPair'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: next token pairs
+          schema:
+            $ref: '#/definitions/mapper.TokenPair'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Refresh token
+      tags:
+      - refresh
+swagger: "2.0"

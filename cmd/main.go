@@ -9,6 +9,14 @@ import (
 	"github.com/romik1505/ApiGateway/internal/app/service"
 )
 
+// @title           Auth service
+// @version         0.1
+// @description     This is authenticate service.
+// @host 			localhost:8080
+// @BasePath 		/
+// @in header
+// @name Authorization
+
 func main() {
 	ctx := context.Background()
 

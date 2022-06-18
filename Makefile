@@ -9,3 +9,6 @@ run:
 
 lint:
 	$(LOCAL_BIN)/golangci-lint run ./... --timeout 60s
+
+swag:
+	swag init -g cmd/main.go
