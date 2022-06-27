@@ -2,30 +2,31 @@ package server
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/romik1505/ApiGateway/internal/app/config"
-	"github.com/romik1505/ApiGateway/internal/app/service"
+	jaegerConfig "github.com/uber/jaeger-client-go/config"
 )
 
 type App struct {
-	authService *service.AuthService
-	httpServer  http.Server
+	httpServer http.Server
 }
 
-func NewApp(ctx context.Context, authService *service.AuthService) *App {
+func NewApp(ctx context.Context, handler http.Handler) *App {
 	port := config.GetValue(config.Port)
 	return &App{
-		authService: authService,
 		httpServer: http.Server{
 			Addr:         port,
 			ReadTimeout:  10 * time.Second,
 			WriteTimeout: 10 * time.Second,
-			Handler:      NewRouter(authService),
+			Handler:      handler,
 		},
 	}
 }
@@ -41,6 +42,10 @@ func (a *App) Run() error {
 		}
 	}(done)
 
+	tracer, closer := initJaeger("auth-service")
+	defer closer.Close()
+	opentracing.SetGlobalTracer(tracer)
+
 	log.Printf("Server started on %s port", config.GetValue(config.Port))
 
 	<-done
@@ -50,4 +55,23 @@ func (a *App) Run() error {
 	defer cancel()
 	log.Println("Server gracefully closed")
 	return a.httpServer.Shutdown(ctx)
+}
+
+func initJaeger(service string) (opentracing.Tracer, io.Closer) {
+	cfg := &jaegerConfig.Configuration{
+		ServiceName: "auth-service",
+		Sampler: &jaegerConfig.SamplerConfig{
+			Type:  "const",
+			Param: 1,
+		},
+		Reporter: &jaegerConfig.ReporterConfig{
+			LogSpans:           true,
+			LocalAgentHostPort: "127.0.0.1:6831",
+		},
+	}
+	tracer, closer, err := cfg.NewTracer()
+	if err != nil {
+		panic(fmt.Sprintf("ERROR: cannot init Jaeger: %v\n", err))
+	}
+	return tracer, closer
 }

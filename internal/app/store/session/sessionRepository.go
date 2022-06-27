@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/opentracing/opentracing-go"
 	"github.com/romik1505/ApiGateway/internal/app/model"
 	"github.com/romik1505/ApiGateway/internal/app/store"
 	"go.mongodb.org/mongo-driver/bson"
@@ -26,6 +27,9 @@ type ISessionRepository interface {
 }
 
 func (s SessionRepository) CreateSession(ctx context.Context, session model.RefreshSession) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "CreateSession")
+	defer span.Finish()
+
 	_, err := s.Storage.Database("apigw").Collection("refresh-sessions").InsertOne(ctx, session)
 	if err != nil {
 		return fmt.Errorf("creation session failed %v", err)
@@ -34,6 +38,9 @@ func (s SessionRepository) CreateSession(ctx context.Context, session model.Refr
 }
 
 func (s SessionRepository) DeleteSession(ctx context.Context, userID string, sessionID string) (model.RefreshSession, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "DeleteSession")
+	defer span.Finish()
+
 	var session model.RefreshSession
 	filter := bson.D{{"_id", sessionID}, {"user_id", userID}}
 	res := s.Storage.Database("apigw").Collection("refresh-sessions").FindOneAndDelete(ctx, filter)
@@ -42,6 +49,9 @@ func (s SessionRepository) DeleteSession(ctx context.Context, userID string, ses
 }
 
 func (s SessionRepository) GetSession(ctx context.Context, userID string, sessionID string) (model.RefreshSession, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "GetSession")
+	defer span.Finish()
+
 	var result model.RefreshSession
 	filter := bson.D{{"_id", sessionID}, {"user_id", userID}}
 

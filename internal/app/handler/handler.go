@@ -1,18 +1,35 @@
-package server
+package handler
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
-	"log"
 	"net/http"
 
+	"github.com/gorilla/mux"
+	_ "github.com/romik1505/ApiGateway/docs"
 	"github.com/romik1505/ApiGateway/internal/app/mapper"
 	"github.com/romik1505/ApiGateway/internal/app/service"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 type Handler struct {
 	authService *service.AuthService
+}
+
+func NewHandler(authService *service.AuthService) *Handler {
+	return &Handler{
+		authService: authService,
+	}
+}
+
+func (h *Handler) InitRoutes() *mux.Router {
+	router := mux.NewRouter()
+
+	router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
+	router.HandleFunc("/login", StartSpanMiddleware(ErrorWrapper(h.Login))).Methods("POST")
+	router.HandleFunc("/refresh-token", StartSpanMiddleware(ErrorWrapper(h.RefreshToken))).Methods("POST")
+
+	return router
 }
 
 // @Summary Login
@@ -25,24 +42,24 @@ type Handler struct {
 // @Success 200 {object} mapper.TokenPair "token pairs"
 // @Failure 400,500 {string} string
 // @Router /login [post]
-func (h Handler) login(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+func (h Handler) Login(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
 	req := mapper.LoginRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return ErrorBadRequest
 	}
 
 	resp, err := h.authService.Login(ctx, req)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		return err
 	}
 
 	err = json.NewEncoder(w).Encode(resp)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return err
 	}
+	return nil
 }
 
 // @Summary Refresh token
@@ -55,30 +72,26 @@ func (h Handler) login(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} mapper.TokenPair "next token pairs"
 // @Failure 400,403,500 {string} string
 // @Router /refresh-token [post]
-func (h Handler) refreshToken(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+func (h Handler) RefreshToken(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
 	req := mapper.TokenPair{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return ErrorBadRequest
 	}
 
 	resp, err := h.authService.RefreshToken(ctx, req)
 	if err != nil {
-		log.Println(err.Error())
-		if errors.Is(err, service.ErrTokensNotFormPair) ||
-			errors.Is(err, service.ErrTokensExpired) ||
-			errors.Is(err, service.ErrInvalidToken) {
-			http.Error(w, err.Error(), http.StatusForbidden)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return err
 	}
 
 	err = json.NewEncoder(w).Encode(resp)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return err
 	}
+	return nil
 }
+
+var (
+	ErrorBadRequest = errors.New("bad request")
+)
